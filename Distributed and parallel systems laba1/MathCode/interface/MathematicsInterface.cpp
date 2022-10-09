@@ -165,6 +165,7 @@ void MathematicsInterface::taskSelection() {
 	clock_t beginclock;
 	clock_t endclock;
 	IntegralSolver* solver = nullptr;
+	double(*function)(double xCoordinate, double yCoordinate) = nullptr;
 	while (!isEndOfGlobal) {
 		this->lineIntent();
 		this->printString("Выберите нужное задание: ");
@@ -187,19 +188,19 @@ void MathematicsInterface::taskSelection() {
 
 					switch (localOption) {
 						case '1':
-							solver = new IntegralSolver(function1);
+							function = function1;
 							isEndOfLocal = true;
 							break;
 						case '2':
-							solver = new IntegralSolver(function2);
+							function = function2;
 							isEndOfLocal = true;
 							break;
 						case '3':
-							solver = new IntegralSolver(function3);
+							function = function3;
 							isEndOfLocal = true;
 							break;
 						case '4':
-							solver = new IntegralSolver(function4);
+							function = function4;
 							isEndOfLocal = true;
 							break;
 						default:
@@ -222,7 +223,7 @@ void MathematicsInterface::taskSelection() {
 				yFragmentation = this->inputNumber("количество разбиений по Y");
 				numberOfThreads = this->inputNumber("количество потоков");
 				beginclock = clock();
-				integralResult = solver->solveAOpenMP(basicCoordinates,numberOfThreads,xFragmentation,yFragmentation);
+				integralResult = IntegralSolver::solveOpenMP(basicCoordinates,function,numberOfThreads,xFragmentation,yFragmentation);
 				endclock = clock();
 				this->printString("Время выполнения: " + to_string(endclock - beginclock)+".");
 				this->printResultString(to_string(integralResult));
@@ -240,7 +241,7 @@ void MathematicsInterface::taskSelection() {
 				secondMatrix = new Matrix(this->inputMatrixRandom());
 				this->printString("Сгенерирована матрица: ");
 				this->lineIntent();
-				//displayNumberMatrix(*secondMatrix, "", 4);
+				///displayNumberMatrix(*secondMatrix, "", 4);
 				this->lineIntent();
 
 
@@ -248,7 +249,7 @@ void MathematicsInterface::taskSelection() {
 
 				this->printString("Мультипоточная матрица: ");
 				beginclock = clock();
-				resultMatrixMulti = Matrix::multithreadedMultiplicationByUsingPromise(firstMatrix,secondMatrix,numberOfThreads);
+				resultMatrixMulti = Matrix::multithreadedMultiplicationByUsingOpenMP(firstMatrix,secondMatrix,numberOfThreads);
 				endclock = clock();
 				//this->displayNumberMatrix(*resultMatrixMulti, "*", 8);
 				//this->displayMatrixFile(*resultMatrixMulti, "*", 6, "MatrixMultiThread.txt");

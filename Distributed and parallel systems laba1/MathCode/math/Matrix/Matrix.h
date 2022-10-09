@@ -19,8 +19,8 @@ using namespace std;
 
 struct matrixCoordinates {
 
-	short int row;
-	short int column;
+	int row;
+	int column;
 
 };
 
@@ -83,6 +83,7 @@ private:
 	vector<BasicDataType*> convertMatrixIntoUpperTriangularMatrix(Matrix& tracking_Matrix);
 
 	static DWORD WINAPI calculateValueAt(void* dataForCalculation);
+	static void WINAPI calculateValueAtOneCell(Matrix* firstMatrix,Matrix* secondMatrix,Matrix* resultMatrix,matrixCoordinates coordinates);
 	static void WINAPI calculateValueAtByUsingPromise(promise<processingData*>* promise);
 
 
@@ -138,6 +139,7 @@ public:
 	static Matrix createUnitMatrix(int Matrix_dimensions, ObjectTypeManager* type_manager);
 	static Matrix* multithreadedMultiplication(Matrix* firstMatrix, Matrix* secondMatrix, short int numberOfThreads);
 	static Matrix* multithreadedMultiplicationByUsingPromise(Matrix* firstMatrix, Matrix* secondMatrix, short int numberOfThreads);
+	static Matrix* multithreadedMultiplicationByUsingOpenMP(Matrix* firstMatrix, Matrix* secondMatrix, short int numberOfThreads);
 
 	//object methods
 
@@ -146,7 +148,8 @@ public:
 	void rowReplacement(int index_of_row,vector<BasicDataType*> new_row);
 	void rowSwap(int index_of_first_row, int index_of_second_row);
 	bool IsThreeDiagonalMatrix();
-	BasicDataType* goForward(int& currentRow, int& currentColumn);
+	static BasicDataType* goForward(Matrix* currentMatrix, int& currentRow, int& currentColumn);
+	static matrixCoordinates goForwardThrough(Matrix* currentMatrix, int numberOfSteps);
 	bool isPossibleToGoForward(int currentRow, int currentColumn);
 	bool tryToGoForward(short int& currentRow,short int& currentColumn);
 

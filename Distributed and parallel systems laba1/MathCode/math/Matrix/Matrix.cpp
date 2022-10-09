@@ -366,6 +366,31 @@
 		}
 	}
 
+	Matrix* Matrix::multithreadedMultiplicationByUsingOpenMP(Matrix* firstMatrix, Matrix* secondMatrix, short int numberOfThreads)
+	{
+		if (firstMatrix->getNumberOfColumns() != secondMatrix->getNumberOfRows()) throw incorrect_input_data_exception("these matrices are not compatible");
+		int rows_of_new_Matrix = firstMatrix->getNumberOfRows();
+		int columns_of_new_Matrix = secondMatrix->getNumberOfColumns();
+		Matrix* result = new Matrix(rows_of_new_Matrix, columns_of_new_Matrix, firstMatrix->getCurrentTypeManager());
+
+		int step = ceil(double(result->getMatrixSize()) / double(numberOfThreads));
+		int row = 0;
+		int column = 0;
+		try {
+			vector<processingData*> allDataForTreads;
+			#pragma omp parallel for num_threads(numberOfThreads)
+			for (int cell = 0; cell < result->getMatrixSize(); cell++) {
+				matrixCoordinates coordinates  =goForwardThrough(result, cell);
+				calculateValueAtOneCell(firstMatrix, secondMatrix, result, coordinates);
+			}
+			#pragma omp barrier
+			return result;
+		}
+		catch (number_cast_exception exception) {
+			throw incorrect_input_data_exception("it is impossible to perform multiplication");
+		}
+	}
+
 	vector<BasicDataType*> Matrix::iterativeStepwiseMethod(BasicDataType* inaccurancy){
 		Matrix buffer_Matrix = this->clone();
 		vector<BasicDataType*> MatrixX_elements;
@@ -997,17 +1022,26 @@
 		return true;
 	}
 
-	BasicDataType* Matrix::goForward(int& currentRow, int& currentColumn)
+	BasicDataType* Matrix::goForward(Matrix* currentMatrix,int& currentRow, int& currentColumn)
 	{
-		if(currentColumn < 0 || currentRow < 0 || (currentRow + 1 >= this->getNumberOfRows() && currentColumn+ 1 >= this->getNumberOfColumns()))
+		if(currentColumn < 0 || currentRow < 0 || (currentRow + 1 >= currentMatrix->getNumberOfRows() && currentColumn+ 1 >= currentMatrix->getNumberOfColumns()))
 			throw  incorrect_input_data_exception("Invalid currentRow or column when you are trying to go forward in this matrix.");
-		if (currentColumn + 1 < this->getNumberOfColumns()) {
+		if (currentColumn + 1 < currentMatrix->getNumberOfColumns()) {
 			currentColumn++;
 		}
 		else {
 			currentColumn = 0;
 			currentRow++;
 		}
+	}
+
+	matrixCoordinates Matrix::goForwardThrough(Matrix* currentMatrix, int numberOfSteps)
+	{
+		int row = 0, column = 0;
+		for (int step = 0; step < numberOfSteps; step++) {
+			goForward(currentMatrix, row, column);
+		}
+		return { row,column };
 	}
 
 	bool Matrix::isPossibleToGoForward(int currentRow, int currentColumn)
@@ -1160,11 +1194,28 @@
 
 				rMatrix->changeValueAt((*data)->row, (*data)->column, new FloatDataType(value));
 			}
-			cout << "!" << globalData->coords->size()<<endl;
 			delete globalData;
 			
 		return 0;
 
+	}
+
+	void  Matrix::calculateValueAtOneCell(Matrix* firstMatrix, Matrix* secondMatrix, Matrix* resultMatrix, matrixCoordinates coordinates)
+	{
+		double value = 0;
+		for (unsigned int index = 0; index < firstMatrix->getNumberOfColumns(); index++) {
+
+			BasicDataType* firstMatrixValue = firstMatrix->getValueAt(coordinates.row, index);
+			BasicDataType* secondMatrixValue = secondMatrix->getValueAt(index, coordinates.column);
+			BasicDataType* resultValue = firstMatrixValue->multiplication(secondMatrixValue);
+			value += dynamic_cast<FloatDataType*>(resultValue)->getValue();
+			delete resultValue;
+			delete firstMatrixValue;
+			delete secondMatrixValue;
+
+		}
+
+		resultMatrix->changeValueAt(coordinates.row, coordinates.column, new FloatDataType(value));
 	}
 
 	void __stdcall Matrix::calculateValueAtByUsingPromise(promise<processingData*>* promise)
@@ -1178,19 +1229,7 @@
 		for (vector<matrixCoordinates*>::iterator data = globalData->coords->begin(); data != end; data++) {
 			double value = 0;
 
-			for (unsigned int index = 0; index < fMatrix->getNumberOfColumns(); index++) {
-
-				BasicDataType* firstMatrixValue = fMatrix->getValueAt((*data)->row, index);
-				BasicDataType* secondMatrixValue = sMatrix->getValueAt(index, (*data)->column);
-				BasicDataType* resultValue = firstMatrixValue->multiplication(secondMatrixValue);
-				value += dynamic_cast<FloatDataType*>(resultValue)->getValue();
-				delete resultValue;
-				delete firstMatrixValue;
-				delete secondMatrixValue;
-
-			}
-
-			rMatrix->changeValueAt((*data)->row, (*data)->column, new FloatDataType(value));
+			calculateValueAtOneCell(fMatrix, sMatrix, rMatrix, **data);
 		}
 		cout << "!" << globalData->coords->size() << endl;
 

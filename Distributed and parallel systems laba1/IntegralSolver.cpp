@@ -87,6 +87,7 @@ double IntegralSolver::findOneParallelogramVolume(coordinates coords, double(*fu
 IntegralSolver::IntegralSolver(double(*function)(double xCoordinate, double yCoordinate))
 {
 	this->function = function;
+	
 }
 
 double IntegralSolver::solve(coordinates baseCoordinates, int numberOfThreads,int xFragmentation,int yFragmentation)
@@ -165,9 +166,9 @@ double IntegralSolver::solveAsync(coordinates baseCoordinates, int numberOfThrea
 	return globalVolume;
 }
 
-double IntegralSolver::solveOpenMP(coordinates baseCoordinates, int numberOfThreads, int xFragmentation, int yFragmentation)
+double IntegralSolver::solveOpenMP(coordinates baseCoordinates, double(*function)(double xCoordinate, double yCoordinate), int numberOfThreads, int xFragmentation, int yFragmentation)
 {
-	globalVolume = 0;
+	double globalVolume = 0;
 	if (numberOfThreads < 1 || numberOfThreads > 63)throw new exception(("Incorrect number of threads. You want to  use " + to_string(numberOfThreads) + " threads.").data());
 	if (xFragmentation < 1 || yFragmentation < 1) throw new exception("Incorrect fragmentation.");
 	if (baseCoordinates.xBegin >= baseCoordinates.xEnd || baseCoordinates.yBegin >= baseCoordinates.yEnd) throw new exception("Wrong basic coordinates of calculation area.");
@@ -185,28 +186,22 @@ double IntegralSolver::solveOpenMP(coordinates baseCoordinates, int numberOfThre
 		arrayOfData.push_back(currentStep);
 	}
 
+	//omp_set_dynamic(numberOfThreads);
 	omp_set_num_threads(numberOfThreads);
 
 	double sumValue = 0;
-	#pragma omp parallel shared(globalVolume)
-	{
-		
-		#pragma omp for reduction(+:sumValue)
-		{
 
-			for (unsigned int currentX = 0; currentX < arrayOfData.size(); currentX++) {
-				sumValue += findOneParallelogramVolume(arrayOfData[currentX], function);
-			}
+	#pragma omp parallel for reduction(+:sumValue) num_threads(numberOfThreads)
 
-		}
-
-        #pragma omp barrier
-
+	for (int currentX = 0; currentX < arrayOfData.size(); currentX++) {
+		sumValue += findOneParallelogramVolume(arrayOfData[currentX], function);
 	}
 	
+	#pragma omp barrier
+	
 
-
-	return globalVolume;
+	#pragma omp barrier
+	return sumValue;
 	
 }
 
